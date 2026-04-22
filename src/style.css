@@ -481,6 +481,53 @@ html, body {
 .cat-name   { font-size: 10px; color: var(--muted); white-space: nowrap; }
 .cat-btn.active .cat-emoji { filter: saturate(2); }
 
+/* ── Period Pills (income) ──────────────────────────────── */
+.form-group#periodGroup,
+.form-group#editPeriodGroup {
+  flex-direction: column;
+}
+.period-pills {
+  display:   flex;
+  flex-wrap: wrap;
+  gap:       6px;
+}
+.period-pill {
+  padding:       7px 13px;
+  background:    var(--surface2);
+  border:        2px solid var(--border);
+  border-radius: 20px;
+  color:         var(--muted);
+  font-family:   var(--font-body);
+  font-size:     13px;
+  font-weight:   500;
+  cursor:        pointer;
+  transition:    all 0.15s;
+  white-space:   nowrap;
+}
+.period-pill:hover  { border-color: var(--income); color: var(--income); }
+.period-pill.active { border-color: var(--income); background: var(--income); color: #111; font-weight: 700; }
+
+/* ── Period badge in tx list ────────────────────────────── */
+.tx-period {
+  background:    rgba(53,241,160,0.15);
+  color:         var(--income);
+  border:        1px solid rgba(53,241,160,0.3);
+  border-radius: 4px;
+  padding:       1px 7px;
+  font-size:     11px;
+  font-weight:   600;
+  white-space:   nowrap;
+}
+
+/* ── Today count ────────────────────────────────────────── */
+.today-count {
+  font-size:  12px;
+  color:      var(--income);
+  text-align: center;
+  min-height: 16px;
+  font-weight: 500;
+}
+
 .add-btn {
   margin-top:      2px;
   background:      var(--accent);

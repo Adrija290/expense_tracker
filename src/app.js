@@ -200,12 +200,28 @@ function updateViewMonthLabel() {
     new Date(y, m-1, 1).toLocaleDateString('en-IN', { month:'long', year:'numeric' });
 }
 
+// ── Income Period ──────────────────────────────────────────
+function selectPeriod(el) {
+  document.querySelectorAll('#periodPills .period-pill').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('period').value = el.dataset.p;
+}
+
+function selectEditPeriod(el) {
+  document.querySelectorAll('#editPeriodPills .period-pill').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('editPeriod').value = el.dataset.p;
+}
+
+const PERIOD_LABELS = { monthly:'Monthly', weekly:'Weekly', yearly:'Yearly', 'one-time':'One-time' };
+
 // ── Transaction Type Toggle ────────────────────────────────
 function setType(type) {
   currentType = type;
   document.getElementById('btnExpense').classList.toggle('active', type === 'expense');
   document.getElementById('btnIncome').classList.toggle('active',  type === 'income');
   document.getElementById('category').value = type === 'income' ? 'Salary' : 'Food';
+  document.getElementById('periodGroup').style.display = type === 'income' ? 'flex' : 'none';
   buildCatScroller('catScroller', 'category', type);
 }
 
@@ -213,6 +229,7 @@ function setEditType(type) {
   editType = type;
   document.getElementById('editBtnExpense').classList.toggle('active', type === 'expense');
   document.getElementById('editBtnIncome').classList.toggle('active',  type === 'income');
+  document.getElementById('editPeriodGroup').style.display = type === 'income' ? 'flex' : 'none';
   buildCatScroller('editCatScroller', 'editCategory', type);
 }
 
@@ -244,6 +261,7 @@ function addTransaction() {
   const cat    = document.getElementById('category').value;
   const date   = document.getElementById('date').value;
   const notes  = document.getElementById('notes').value.trim();
+  const period = currentType === 'income' ? document.getElementById('period').value : null;
   const err    = document.getElementById('formError');
 
   if (!desc)                  { err.textContent = '⚠ What was this for?'; return; }
@@ -251,15 +269,24 @@ function addTransaction() {
   if (!date)                  { err.textContent = '⚠ Please pick a date.'; return; }
   err.textContent = '';
 
-  transactions.unshift({ id: Date.now(), type: currentType, desc, amount, category: cat, date, notes });
+  transactions.unshift({ id: Date.now(), type: currentType, desc, amount, category: cat, date, notes, period });
   save();
   render();
 
-  // Keep date + category — only clear desc/amount/notes so user can quickly add another
+  // Keep date + category so next entry for same day/category is instant
   document.getElementById('desc').value   = '';
   document.getElementById('amount').value = '';
   document.getElementById('notes').value  = '';
   document.getElementById('desc').focus();
+
+  // Flash button
+  const btn = document.getElementById('addBtn');
+  btn.textContent = '✓ Added!';
+  btn.style.background = 'var(--income)';
+  setTimeout(() => { btn.textContent = '+ Add Transaction'; btn.style.background = ''; }, 1400);
+
+  // Today count
+  updateTodayCount(date);
 
   if (currentType === 'expense') {
     const txMonth = date.slice(0,7);
@@ -274,7 +301,7 @@ function addTransaction() {
       }
     }
   }
-  showToast('✓ Added! Add another or close.', 'success');
+  showToast('✓ Added! Pick next category to add more.', 'success');
 }
 
 // ── Delete Transaction ─────────────────────────────────────
@@ -295,6 +322,18 @@ function openEditModal(id) {
   document.getElementById('editCategory').value = tx.category;
   document.getElementById('editDate').value     = tx.date;
   document.getElementById('editNotes').value    = tx.notes || '';
+
+  // Period
+  const pg = document.getElementById('editPeriodGroup');
+  pg.style.display = tx.type === 'income' ? 'flex' : 'none';
+  if (tx.type === 'income') {
+    const p = tx.period || 'monthly';
+    document.getElementById('editPeriod').value = p;
+    document.querySelectorAll('#editPeriodPills .period-pill').forEach(b => {
+      b.classList.toggle('active', b.dataset.p === p);
+    });
+  }
+
   editType = tx.type;
   document.getElementById('editBtnExpense').classList.toggle('active', tx.type === 'expense');
   document.getElementById('editBtnIncome').classList.toggle('active',  tx.type === 'income');
@@ -315,10 +354,11 @@ function saveEdit() {
   const cat    = document.getElementById('editCategory').value;
   const date   = document.getElementById('editDate').value;
   const notes  = document.getElementById('editNotes').value.trim();
+  const editPeriod = editType === 'income' ? document.getElementById('editPeriod').value : null;
   if (!desc || !amount || amount <= 0 || !date) { showToast('Please fill all required fields.', 'error'); return; }
   const idx = transactions.findIndex(t => t.id === id);
   if (idx !== -1) {
-    transactions[idx] = { ...transactions[idx], type: editType, desc, amount, category: cat, date, notes };
+    transactions[idx] = { ...transactions[idx], type: editType, desc, amount, category: cat, date, notes, period: editPeriod };
     save(); render();
     showToast('Updated!', 'success');
   }
@@ -550,6 +590,7 @@ function renderTransactions() {
           <div class="tx-meta">
             <span>${dateStr}</span>
             <span class="tx-tag">${t.category}</span>
+            ${t.type === 'income' && t.period ? `<span class="tx-period">${PERIOD_LABELS[t.period]||t.period}</span>` : ''}
             ${t.notes ? `<span class="tx-notes">📝 ${escapeHtml(t.notes)}</span>` : ''}
           </div>
         </div>
@@ -562,6 +603,17 @@ function renderTransactions() {
         </div>
       </div>`;
   }).join('');
+}
+
+// ── Today Count ────────────────────────────────────────────
+function updateTodayCount(date) {
+  const count = transactions.filter(t => t.date === date).length;
+  const el = document.getElementById('todayCount');
+  if (el) el.textContent = count > 1 ? `${count} entries on ${formatDate(date)}` : '';
+}
+
+function formatDate(d) {
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day:'numeric', month:'short' });
 }
 
 // ── Export ─────────────────────────────────────────────────
