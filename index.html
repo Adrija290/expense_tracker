@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ledger — Expense Tracker</title>
+  <title>Ledger — Professional Expense Manager</title>
   <link rel="stylesheet" href="src/style.css" />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -13,10 +13,11 @@
   <header class="header">
     <div class="header-left">
       <span class="logo">⬡ Ledger</span>
-      <span class="tagline">Track every rupee</span>
+      <span class="tagline">Professional Expense Manager</span>
     </div>
     <div class="header-right">
       <span class="current-date" id="currentDate"></span>
+      <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light / dark">☀</button>
     </div>
   </header>
 
@@ -25,14 +26,22 @@
     <div class="summary-card income">
       <div class="summary-label">Total Income</div>
       <div class="summary-amount" id="totalIncome">₹0</div>
+      <div class="summary-change" id="incomeChange"></div>
     </div>
     <div class="summary-card balance">
-      <div class="summary-label">Balance</div>
+      <div class="summary-label">Net Balance</div>
       <div class="summary-amount" id="totalBalance">₹0</div>
+      <div class="summary-change" id="balanceChange"></div>
     </div>
     <div class="summary-card expense">
       <div class="summary-label">Total Expenses</div>
       <div class="summary-amount" id="totalExpense">₹0</div>
+      <div class="summary-change" id="expenseChange"></div>
+    </div>
+    <div class="summary-card stat">
+      <div class="summary-label">Avg. Daily Spend</div>
+      <div class="summary-amount" id="avgDaily">₹0</div>
+      <div class="summary-change" id="avgDailyLabel"></div>
     </div>
   </section>
 
@@ -50,25 +59,31 @@
 
       <div class="form-group">
         <label>Description</label>
-        <input type="text" id="desc" placeholder="e.g. Dinner at Behrouz" />
+        <input type="text" id="desc" placeholder="e.g. Office lunch, Client payment" autocomplete="off" />
       </div>
 
       <div class="form-group">
         <label>Amount (₹)</label>
-        <input type="number" id="amount" placeholder="0.00" min="0" />
+        <input type="number" id="amount" placeholder="0.00" min="0" step="0.01" />
       </div>
 
       <div class="form-group">
         <label>Category</label>
         <select id="category">
-          <option value="Food">🍜 Food</option>
+          <option value="Food">🍜 Food &amp; Dining</option>
           <option value="Transport">🚌 Transport</option>
           <option value="Shopping">🛍️ Shopping</option>
-          <option value="Health">💊 Health</option>
+          <option value="Health">💊 Health &amp; Medical</option>
           <option value="Entertainment">🎬 Entertainment</option>
-          <option value="Makeup">💄 Makeup & Beauty</option>
-          <option value="Utilities">💡 Utilities</option>
+          <option value="Rent">🏠 Rent &amp; Housing</option>
+          <option value="Bills">💡 Bills &amp; Utilities</option>
+          <option value="Insurance">🛡️ Insurance</option>
+          <option value="Investment">📈 Investment</option>
+          <option value="Education">📚 Education</option>
+          <option value="Travel">✈️ Travel</option>
           <option value="Salary">💼 Salary</option>
+          <option value="Freelance">💻 Freelance</option>
+          <option value="Business">🏢 Business</option>
           <option value="Other">📦 Other</option>
         </select>
       </div>
@@ -78,11 +93,19 @@
         <input type="date" id="date" />
       </div>
 
-      <button class="add-btn" onclick="addTransaction()">+ Add Transaction</button>
+      <div class="form-group">
+        <label>Notes <span class="label-optional">(optional)</span></label>
+        <input type="text" id="notes" placeholder="Reference, invoice no., remarks…" autocomplete="off" />
+      </div>
+
+      <button class="add-btn" onclick="addTransaction()">
+        + Add Transaction
+        <span class="shortcut-hint">Ctrl ↵</span>
+      </button>
       <div class="form-error" id="formError"></div>
     </aside>
 
-    <!-- Right: Month Nav + Category Chart + Budget + Transactions -->
+    <!-- Right Panel -->
     <div class="right-panel">
 
       <!-- Month Navigator -->
@@ -90,6 +113,18 @@
         <button class="month-nav-btn" onclick="changeViewMonth(-1)">&#8249;</button>
         <span id="viewMonthLabel"></span>
         <button class="month-nav-btn" onclick="changeViewMonth(1)">&#8250;</button>
+      </div>
+
+      <!-- 6-Month Trend Chart -->
+      <div class="trend-section">
+        <div class="trend-header">
+          <h2 class="panel-title">6-Month Spending Trend</h2>
+          <div class="trend-legend">
+            <span class="legend-dot danger"></span> Expenses
+            <span class="legend-dot income" style="margin-left:14px"></span> Income
+          </div>
+        </div>
+        <div class="trend-chart-wrap" id="trendChart"></div>
       </div>
 
       <!-- Category Breakdown + Budget Limits -->
@@ -103,7 +138,6 @@
           <p class="empty-hint">No expenses yet.</p>
         </div>
 
-        <!-- Budget Inputs Panel (hidden by default) -->
         <div class="budget-inputs-panel" id="budgetInputsPanel" style="display:none">
           <div class="budget-inputs-grid" id="budgetInputsGrid"></div>
           <button class="save-limits-btn" onclick="saveLimits()">Save Limits</button>
@@ -115,17 +149,29 @@
         <div class="tx-header">
           <h2 class="panel-title">Transactions</h2>
           <div class="tx-actions">
+            <div class="search-wrap">
+              <span class="search-icon">⌕</span>
+              <input type="text" id="searchInput" class="search-input"
+                     placeholder="Search description, category, notes…"
+                     oninput="renderTransactions()" autocomplete="off" />
+            </div>
             <div class="filter-row">
               <select id="filterCategory" onchange="renderTransactions()">
                 <option value="all">All Categories</option>
-                <option value="Food">Food</option>
+                <option value="Food">Food &amp; Dining</option>
                 <option value="Transport">Transport</option>
                 <option value="Shopping">Shopping</option>
                 <option value="Health">Health</option>
                 <option value="Entertainment">Entertainment</option>
-                <option value="Makeup">Makeup</option>
-                <option value="Utilities">Utilities</option>
+                <option value="Rent">Rent</option>
+                <option value="Bills">Bills</option>
+                <option value="Insurance">Insurance</option>
+                <option value="Investment">Investment</option>
+                <option value="Education">Education</option>
+                <option value="Travel">Travel</option>
                 <option value="Salary">Salary</option>
+                <option value="Freelance">Freelance</option>
+                <option value="Business">Business</option>
                 <option value="Other">Other</option>
               </select>
               <select id="filterType" onchange="renderTransactions()">
@@ -134,7 +180,10 @@
                 <option value="income">Income</option>
               </select>
             </div>
-            <button class="export-btn" onclick="exportCSV()">↓ Export CSV</button>
+            <div class="action-btns">
+              <button class="export-btn" onclick="exportCSV()">↓ CSV</button>
+              <button class="export-btn" onclick="printReport()">⎙ Print</button>
+            </div>
           </div>
         </div>
 
@@ -148,6 +197,63 @@
 
     </div>
   </main>
+
+  <!-- Edit Transaction Modal -->
+  <div class="modal-overlay" id="editModal" style="display:none" onclick="closeEditModal(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Edit Transaction</h3>
+        <button class="modal-close" onclick="closeEditModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editId" />
+        <div class="type-toggle">
+          <button class="toggle-btn active" id="editBtnExpense" onclick="setEditType('expense')">Expense</button>
+          <button class="toggle-btn" id="editBtnIncome" onclick="setEditType('income')">Income</button>
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <input type="text" id="editDesc" autocomplete="off" />
+        </div>
+        <div class="form-group">
+          <label>Amount (₹)</label>
+          <input type="number" id="editAmount" min="0" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <select id="editCategory">
+            <option value="Food">🍜 Food &amp; Dining</option>
+            <option value="Transport">🚌 Transport</option>
+            <option value="Shopping">🛍️ Shopping</option>
+            <option value="Health">💊 Health &amp; Medical</option>
+            <option value="Entertainment">🎬 Entertainment</option>
+            <option value="Rent">🏠 Rent &amp; Housing</option>
+            <option value="Bills">💡 Bills &amp; Utilities</option>
+            <option value="Insurance">🛡️ Insurance</option>
+            <option value="Investment">📈 Investment</option>
+            <option value="Education">📚 Education</option>
+            <option value="Travel">✈️ Travel</option>
+            <option value="Salary">💼 Salary</option>
+            <option value="Freelance">💻 Freelance</option>
+            <option value="Business">🏢 Business</option>
+            <option value="Other">📦 Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="editDate" />
+        </div>
+        <div class="form-group">
+          <label>Notes <span class="label-optional">(optional)</span></label>
+          <input type="text" id="editNotes" autocomplete="off" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+        <button class="btn-primary" onclick="saveEdit()">Save Changes</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Toast notification -->
   <div class="toast" id="toast"></div>
